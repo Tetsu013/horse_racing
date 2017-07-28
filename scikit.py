@@ -74,9 +74,9 @@ def Svm(arr):
  [馬Zのid,  馬Zのid]
  ]
 """
-def Num(arr2):
-    print(len(arr2))
-    horse, jokey = np.hsplit(arr2, [1])
+def Num(arr2, arr3):
+    ar = np.r_[arr2, arr3]
+    horse, jokey = np.hsplit(ar, [1])
     horse2= np.ravel(horse.T)
     jokey2= np.ravel(jokey.T)
     horse_zisyo = np.empty((0,2), float)
@@ -143,6 +143,8 @@ if __name__ == "__main__":
     
     arr=np.empty((0,5), float)
     arr2=np.empty((0,2), float)
+    
+    arr3=np.empty((0,2), float)
     server = StartSSHSession()
     connection = GetConnection(server.local_bind_port)
     cursor = connection.cursor()
@@ -158,6 +160,12 @@ if __name__ == "__main__":
     sql2 +=	"	LEFT JOIN m_jockey as mj ON tkd.jockey_id = mj.jockey_id "
     sql2 +=	"WHERE tkd.score = 1"
 
+    sql3 = "SELECT tkd.id, tkd.horse_name_id, tkd.jockey_id,tkd.horse_sex, tkd.horse_year, basis_weight "
+    sql3 += "FROM t_keiba_info AS tkd "
+    sql3 +=	"LEFT JOIN m_horse as mh ON tkd.horse_name_id = mh.horse_id "
+    sql3 +=	"	LEFT JOIN m_jockey as mj ON tkd.jockey_id = mj.jockey_id"
+    
+    
     
     try:
         cursor.execute(sql)
@@ -165,7 +173,16 @@ if __name__ == "__main__":
         
         cursor.execute(sql2)
         rows2 = cursor.fetchall()
- 
+        
+        cursor.execute(sql3)
+        rows3 = cursor.fetchall()
+
+        for row3 in rows3:
+            cc = np.array([])
+            cc = np.append(cc, row3[1]*1.0)
+            cc = np.append(cc, row3[2]*1.0)
+            arr3 = np.append(arr3, np.array([cc]), axis=0)
+
         for row2 in rows2:
             #a = row2[0]
             col = np.array([])
@@ -195,7 +212,7 @@ if __name__ == "__main__":
         print('MySQLdb.Error: ', e)
         StopSSHSession(server, connection)
     hor, joc = Num(arr2)
-    new_arr = make_training(arr, hor, joc)
+    new_arr = make_training(arr, arr3, hor, joc)
     connection.commit()
     StopSSHSession(server, connection)
     print(arr)
