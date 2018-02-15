@@ -66,104 +66,55 @@ def Num(arr2):
     
     return horse_zisyo, jokey_zisyo, trainer_zisyo
 
-def StartSSHSession():
-    server = SSHTunnelForwarder(
-                                ('yuruhuwa-bourg.sakura.ne.jp', 22),
-                                ssh_username="yuruhuwa-bourg",
-                                ssh_password="eh4uat56gu",
-                                remote_bind_address=('mysql541.db.sakura.ne.jp', 3306)
-                                )
-        
-    server.start()
-    return server
-
-
-def GetConnection(port):
-    connection = MySQLdb.connect(
-                                 host='127.0.0.1',
-                                 port=port,
-                                 user='yuruhuwa-bourg',
-                                 passwd='1q2w3e4r',
-                                 db='yuruhuwa-bourg_keiba',
-                                 charset='utf8')
-    return connection
-
-def StopSSHSession(server, connection):
-    connection.close()
-    server.stop()
-
-def make_training_one(arr, arr3, horse, jockey, trainer):
-    #print(arr)
-
-    for ar in arr:
-        
-        ab = list(np.where(horse[:,0]==ar[1]))
-        ac = list(np.where(jockey[:,0]==ar[2]))
-        ad = list(np.where(jockey[:,0]==ar[3]))
-        for io in list(ab[0]):
+def createWinsRate(test, train, horse, jockey, trainer):
+    
+    for ar in test:
+        horse_test   = list(np.where(horse[:,0]==ar[1]))
+        jockey_test  = list(np.where(jockey[:,0]==ar[2]))
+        trainer_test = list(np.where(jockey[:,0]==ar[3]))
+        for io in list(horse_test[0]):
             ar[1] = horse[int(io)][1]
-        for ip in list(ac[0]):
+        for ip in list(jockey_test[0]):
             ar[2] = jockey[int(ip)][1]
-        for iq in list(ad[0]):
+        for iq in list(trainer_test[0]):
             ar[3] = trainer[int(iq)][1]
 
-    for ar3 in arr3:
+    for ar3 in train:
         
-        ab = list(np.where(horse[:,0]==ar3[1]))
-        ac = list(np.where(jockey[:,0]==ar3[2]))
-        ad = list(np.where(trainer[:,0]==ar3[3]))
+        horse_train = list(np.where(horse[:,0]==ar3[1]))
+        jockey_train = list(np.where(jockey[:,0]==ar3[2]))
+        trainer_train = list(np.where(trainer[:,0]==ar3[3]))
         
-        if len(list(ab[0])) == 0:
+        if len(list(horse_train[0])) == 0:
             ar3[1] = 0.0
         else:
-            for io in list(ab[0]):
+            for io in list(horse_train[0]):
                 ar3[1] = horse[int(io)][1]
         
-        if len(list(ac[0])) == 0:
+        if len(list(jockey_train[0])) == 0:
             ar3[2] = 0.0
         else:
-            for ip in list(ac[0]):
+            for ip in list(jockey_train[0]):
                 ar3[2] = jockey[int(ip)][1]
         
-        if len(list(ad[0])) == 0:
+        if len(list(trainer_train[0])) == 0:
             ar3[3] = 0.0
         else:
-            for iq in list(ad[0]):
+            for iq in list(trainer_train[0]):
                 ar3[3] = trainer[int(iq)][1]
 
-    return arr, arr3
+    return test, train
 
-def Com(arr3,arr_before):
-    last = np.empty((0,2), float)
+#各勝率を足し合わせる
+def raceBasicWinrate(arr3,arr_before):
+    finBasicWins = np.empty((0,2), float)
     for ara, iou in zip(arr3, arr_before):
-        ccc = np.array([])
-        aer = ara[1]+ara[2]
-        ccc = np.append(ccc, iou[1])
-        ccc = np.append(ccc, aer)
-        last = np.append(last, np.array([ccc]), axis=0)
-    s = sorted(list(last),key=lambda i:i[1])
-    a = np.array(s)
-    print(a)
-    return a
-
-def Csv(out):
-    f = open('svm.csv', 'r')
-
-    reader = csv.reader(f)
-    ao = []
-    for row in reader:
-        print(row)
-        row_data = row[0].split(":")
-        print(float(row[0].split(":")[0]))
-        print(np.where(out == float(row[0].split(":")[0])))
-        print(out[np.where(out == float(row[0].split(":")[0]))][0])
-        print(out[np.where(out == float(row[0].split(":")[0]))[0]][0][1])
-        aioi = row_data[0] + ":" + row_data[1] + ":" + str(out[np.where(out == float(row[0].split(":")[0]))[0]][0][1])
-        print(aioi)
-        ao.append(aioi)
-    f.close()
-    print(ao)
-    return ao
+        raceZisyo = np.array([])
+        sumRate = ara[1]+ara[2]+ara[3]
+        raceZisyo = np.append(ccc, iou[1])
+        raceZisyo = np.append(ccc, sumRate)
+        finBasicWins = np.append(finBasicWins, np.array([raceZisyo]), axis=0)
+    return np.array(sorted(list(finBasicWins),key=lambda i:i[1]))
 
 def Aska(id):
     
