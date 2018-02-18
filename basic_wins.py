@@ -9,220 +9,124 @@ from sshtunnel import SSHTunnelForwarder
 from time import sleep
 
 #馬勝率・騎手勝率の計算(例は馬のみ、騎手も同様)
-#input
+
+def Num(win_rate_zisyo, test, train):
+	#馬と騎手と調教師の勝率をそれぞれの配列に分け計算する。
+	#createWinsRate,raceBasicWinrate組み合わせ
+	horse, jokey, trainer = np.hsplit(win_rate_zisyo, [1,2])
+	horse2= np.ravel(horse.T)
+	jokey2= np.ravel(jokey.T)
+	trainer2 = np.ravel(trainer.T)
+	
+	horse_zisyo = np.empty((0,2), float)
+	jokey_zisyo = np.empty((0,2), float)
+	trainer_zisyo = np.empty((0,2),float)
+	
+	for horseElement in horse2:
+		zisyo =  np.array([])
+		zisyo = np.append(zisyo, horseElement)
+		zisyo = np.append(zisyo, (len(np.where(horse2==horseElement)[0])*1.0) / (len(win_rate_zisyo)*1.0))
+		horse_zisyo = np.append(horse_zisyo, np.array([zisyo]), axis=0)
+	for jockeyElement in jokey2:
+		zisyo2 =  np.array([])
+		zisyo2 = np.append(zisyo2, jockeyElement)
+		zisyo2 = np.append(zisyo2, (len(np.where(jokey2==jockeyElement)[0])*1.0) / (len(win_rate_zisyo)*1.0))
+		jokey_zisyo = np.append(jokey_zisyo, np.array([zisyo2]), axis=0)
+	for trainerElement in trainer2:
+		zisyo3 =  np.array([])
+		zisyo3 = np.append(zisyo3, jokey_zisyo)
+		zisyo3 = np.append(zisyo3, (len(np.where(trainer2==jokey_zisyo)[0])*1.0) / (len(win_rate_zisyo)*1.0))
+		trainer_zisyo = np.append(trainer_zisyo, np.array([zisyo3]), axis=0)
+	#各要素(馬の勝率、騎手の勝率、調教師の勝率を正規化)
+	nrHorse_zisyo = normalize(horse_zisyo)
+	nrJokey_zisyo = normalize(jokey_zisyo)
+	nrTrainer_zisyo = normalize(trainer_zisyo)
+
+	train_result = np.empty((0,2), float)
+	for result in train:
+		wkTrainResult =np.empty((0,2), float)
+		wkTrainResult = np.append(wkTrainResult, result[0])
+		horse_zisyo_train = list(np.where(horse_zisyo[:,0]==result[1]))
+		jockey_zisyo_train = list(np.where(jockey_zisyo[:,0]==result[2]))
+		trainer_train = list(np.where(trainer_zisyo[:,0]==result[3]))
+			
+		if len(list(horse_zisyo_train[0])) == 0:
+			result[1] = 0.0
+		else:
+			for io in list(horse_zisyo_train[0]):
+				result[1] = horse_zisyo[int(io)][1]
+			
+		if len(list(jockey_zisyo_train[0])) == 0:
+			result[2] = 0.0
+		else:
+			for ip in list(jockey_zisyo_train[0]):
+				result[2] = jockey_zisyo[int(ip)][1]
+
+		if len(list(trainer_train[0])) == 0:
+			result[3] = 0.0
+		else:
+			for iq in list(trainer_train[0]):
+				result[3] = trainer[int(iq)][1]
+		wkTrainResult = np.append(wkTrainResult, result[1]+result[2]+result[3])
+		train_result = np.append(train_result, np.array([wkTrainResult]), axis = 0)
+	return train_result
+
+def normalize(targetArray):
+	for targetElement in targetArray:
+		targetElement[1] =max(targetArray[:,1])
+	return targetArray
+
+
+
 """
-    [
-    [馬Aのid,  騎手Aのid]
-    [馬Bのid,  騎手Bのid]
-    [馬Cのid,  騎手Cのid]
-    .
-    .
-    .
-    [馬Zのid,  騎手Zのid]
-    ]
-    """
-#output
-"""
-    [
-    [馬Aのid,  馬Aの勝率]
-    [馬Bのid,  馬Bのid]
-    [馬Cのid,  馬Cのid]
-    .
-    .
-    .
-    [馬Zのid,  馬Zのid]
-    ]
-    """
-def Num(arr2):
-    horse, jokey, trainer = np.hsplit(arr2, [1,2])
-    horse2= np.ravel(horse.T)
-    jokey2= np.ravel(jokey.T)
-    trainer2 = np.ravel(trainer.T)
-    horse_zisyo = np.empty((0,2), float)
-    jokey_zisyo = np.empty((0,2), float)
-    trainer_zisyo = np.empty((0,2),float)
-    
-    for i in horse2:
-        zisyo =  np.array([])
-        zisyo = np.append(zisyo, i)
-        zisyo = np.append(zisyo, (len(np.where(horse2==i)[0])*1.0) / (len(arr2)*1.0))
-        horse_zisyo = np.append(horse_zisyo, np.array([zisyo]), axis=0)
-    for i in jokey2:
-        zisyo2 =  np.array([])
-        zisyo2 = np.append(zisyo2, i)
-        zisyo2 = np.append(zisyo2, (len(np.where(jokey2==i)[0])*1.0) / (len(arr2)*1.0))
-        jokey_zisyo = np.append(jokey_zisyo, np.array([zisyo2]), axis=0)
-    for i in trainer2:
-        zisyo3 =  np.array([])
-        zisyo3 = np.append(zisyo3, i)
-        zisyo3 = np.append(zisyo3, (len(np.where(trainer2==i)[0])*1.0) / (len(arr2)*1.0))
-        trainer_zisyo = np.append(trainer_zisyo, np.array([zisyo3]), axis=0)
-    for a in horse_zisyo:
-        a[1] = a[1] / max(horse_zisyo[:,1])
-    for b in jokey_zisyo:
-        b[1] = b[1] / max(jokey_zisyo[:,1])
-    for c in trainer_zisyo:
-        c[1] = c[1] / max(trainer_zisyo[:,1])
-    
-    return horse_zisyo, jokey_zisyo, trainer_zisyo
 
 def createWinsRate(test, train, horse, jockey, trainer):
-    
-    for ar in test:
-        horse_test   = list(np.where(horse[:,0]==ar[1]))
-        jockey_test  = list(np.where(jockey[:,0]==ar[2]))
-        trainer_test = list(np.where(jockey[:,0]==ar[3]))
-        for io in list(horse_test[0]):
-            ar[1] = horse[int(io)][1]
-        for ip in list(jockey_test[0]):
-            ar[2] = jockey[int(ip)][1]
-        for iq in list(trainer_test[0]):
-            ar[3] = trainer[int(iq)][1]
+	#辞書からテストデータとトレーニングデータの勝率を引っ張る
+	for predata in test:
+		horse_test   = list(np.where(horse[:,0]==predata[1]))
+		jockey_test  = list(np.where(jockey[:,0]==predata[2]))
+		trainer_test = list(np.where(jockey[:,0]==predata[3]))
+		for io in list(horse_test[0]):
+			predata[1] = horse[int(io)][1]
+		for ip in list(jockey_test[0]):
+			predata[2] = jockey[int(ip)][1]
+		for iq in list(trainer_test[0]):
+			predata[3] = trainer[int(iq)][1]
 
-    for ar3 in train:
-        
-        horse_train = list(np.where(horse[:,0]==ar3[1]))
-        jockey_train = list(np.where(jockey[:,0]==ar3[2]))
-        trainer_train = list(np.where(trainer[:,0]==ar3[3]))
-        
-        if len(list(horse_train[0])) == 0:
-            ar3[1] = 0.0
-        else:
-            for io in list(horse_train[0]):
-                ar3[1] = horse[int(io)][1]
-        
-        if len(list(jockey_train[0])) == 0:
-            ar3[2] = 0.0
-        else:
-            for ip in list(jockey_train[0]):
-                ar3[2] = jockey[int(ip)][1]
-        
-        if len(list(trainer_train[0])) == 0:
-            ar3[3] = 0.0
-        else:
-            for iq in list(trainer_train[0]):
-                ar3[3] = trainer[int(iq)][1]
+	for result in train:
+		
+		horse_train = list(np.where(horse[:,0]==result[1]))
+		jockey_train = list(np.where(jockey[:,0]==result[2]))
+		trainer_train = list(np.where(trainer[:,0]==result[3]))
+		
+		if len(list(horse_train[0])) == 0:
+			result[1] = 0.0
+		else:
+			for io in list(horse_train[0]):
+				result[1] = horse[int(io)][1]
+		
+		if len(list(jockey_train[0])) == 0:
+			result[2] = 0.0
+		else:
+			for ip in list(jockey_train[0]):
+				result[2] = jockey[int(ip)][1]
+		
+		if len(list(trainer_train[0])) == 0:
+			result[3] = 0.0
+		else:
+			for iq in list(trainer_train[0]):
+				result[3] = trainer[int(iq)][1]
 
-    return test, train
+	return test, train
 
 #各勝率を足し合わせる
 def raceBasicWinrate(arr3,arr_before):
-    finBasicWins = np.empty((0,2), float)
-    for ara, iou in zip(arr3, arr_before):
-        raceZisyo = np.array([])
-        sumRate = ara[1]+ara[2]+ara[3]
-        raceZisyo = np.append(ccc, iou[1])
-        raceZisyo = np.append(ccc, sumRate)
-        finBasicWins = np.append(finBasicWins, np.array([raceZisyo]), axis=0)
-    return np.array(sorted(list(finBasicWins),key=lambda i:i[1]))
-
-def Aska(id):
-    
-    server = StartSSHSession()
-    connection = GetConnection(server.local_bind_port)
-    cursor = connection.cursor()
-    
-    sql = "SELECT winning_rate "
-    sql += "FROM calc_winning_rate "
-    sql += "WHERE horse_name_id = "
-    sql += id
-
-    try:
-        cursor.execute(sql)
-        rows = cursor.fetchall()
-        
-        for row in rows:
-            return row[0]
-
-    except MySQLdb.Error as e:
-        print('MySQLdb.Error: ', e)
-        StopSSHSession(server, connection)
-
-if __name__ == "__main__":
-    
-    
-    arr=np.empty((0,4), float)
-    arr2=np.empty((0,3), float)
-    
-    arr3=np.empty((0,4), float)
-    server = StartSSHSession()
-    connection = GetConnection(server.local_bind_port)
-    cursor = connection.cursor()
-    
-    sql = "SELECT tkd.score, tkd.rank, tkd.horse_name_id, tkd.jockey_id,tkd.horse_sex, tkd.horse_year, basis_weight, tkd.trainer_id "
-    sql += "FROM t_keiba_data_result AS tkd "
-    sql +=	"LEFT JOIN m_horse as mh ON tkd.horse_name_id = mh.horse_id "
-    sql +=	"	LEFT JOIN m_jockey as mj ON tkd.jockey_id = mj.jockey_id"
-    sql +=	"	LEFT JOIN m_trainer as mk ON tkd.trainer_id = mk.trainer_id"
-    
-    sql2 = "SELECT tkd.horse_name_id, tkd.jockey_id, tkd.trainer_id "
-    sql2 += "FROM t_keiba_data_result AS tkd "
-    sql2 +=	"LEFT JOIN m_horse as mh ON tkd.horse_name_id = mh.horse_id "
-    sql2 +=	"	LEFT JOIN m_jockey as mj ON tkd.jockey_id = mj.jockey_id "
-    sql2 +=	"	LEFT JOIN m_trainer as mk ON tkd.trainer_id = mk.trainer_id"
-    sql2 +=	" WHERE tkd.score = 1"
-    
-    sql3 = "SELECT tkd.id, tkd.horse_name_id, tkd.jockey_id,tkd.horse_sex, tkd.horse_year, basis_weight,tkd.trainer_id "
-    sql3 += "FROM t_keiba_predata AS tkd "
-    sql3 +=	"LEFT JOIN m_horse as mh ON tkd.horse_name_id = mh.horse_id "
-    sql3 +=	"	LEFT JOIN m_jockey as mj ON tkd.jockey_id = mj.jockey_id"
-    sql3 +=	"	LEFT JOIN m_trainer as mk ON tkd.trainer_id = mk.trainer_id"
-    sql3 += " WHERE tkd.url = 201708050412"
-    
-    try:
-        cursor.execute(sql)
-        rows = cursor.fetchall()
-        
-        cursor.execute(sql2)
-        rows2 = cursor.fetchall()
-        
-        cursor.execute(sql3)
-        rows3 = cursor.fetchall()
-        
-        for row3 in rows3:
-            cc = np.array([])
-            cc = np.append(cc, row3[0]*1.0)
-            print(row3[1])
-            cc = np.append(cc, row3[1]*1.0)
-            cc = np.append(cc, row3[2]*1.0)
-            cc = np.append(cc, row3[6]*1.0)
-            arr3 = np.append(arr3, np.array([cc]), axis=0)
-        
-        for row2 in rows2:
-            col = np.array([])
-            col = np.append(col, row2[0]*1.0)
-            col = np.append(col, row2[1]*1.0)
-            col = np.append(col, row2[2]*1.0)
-            arr2 = np.append(arr2, np.array([col]), axis=0)
-        
-        for row in rows:
-            column = np.array([])
-            column = np.append(column, row[1]*1.0)
-            column = np.append(column, row[2]*1.0)
-            column = np.append(column, row[3]*1.0)
-            column = np.append(column, row[7]*1.0)
-            
-            arr = np.append(arr, np.array([column]), axis=0)
-    
-    except MySQLdb.Error as e:
-        print('MySQLdb.Error: ', e)
-        StopSSHSession(server, connection)
-    
-    hor, joc, tra = Num(arr2)
-    print(arr3)
-    arr3_copy = np.array(arr3)
-    new_arr, new_arr3 = make_training_one(arr, arr3, hor, joc, tra)
-    connection.commit()
-    StopSSHSession(server, connection)
-    sss = Com(new_arr3,arr3_copy)
-    print(sss)
-    f = open('out_Kyoto3.csv', 'w')
-    writer = csv.writer(f, lineterminator='\n')
-    for i in sss:
-        writer.writerow(i)
-    aio = []
-    #for i in Csv(sss):
-    #writer.writerow(i)
-    # ファイルクローズ
-    f.close()
-
+	finBasicWins = np.empty((0,2), float)
+	for ara, iou in zip(arr3, arr_before):
+		raceZisyo = np.array([])
+		sumRate = ara[1]+ara[2]+ara[3]
+		raceZisyo = np.append(ccc, iou[1])
+		raceZisyo = np.append(ccc, sumRate)
+		finBasicWins = np.append(finBasicWins, np.array([raceZisyo]), axis=0)
+	return np.array(sorted(list(finBasicWins),key=lambda i:i[1]))
+"""
